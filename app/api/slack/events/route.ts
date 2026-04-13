@@ -1,6 +1,7 @@
 import { start } from "workflow/api";
 
 import { getAssistantSuggestedPrompts } from "@/lib/assistant-prompts";
+import { env } from "@/lib/env";
 import {
   setAssistantSuggestedPrompts,
   setAssistantTitle,
@@ -118,8 +119,9 @@ export async function POST(request: Request) {
   const timestamp = request.headers.get("x-slack-request-timestamp");
   const signature = request.headers.get("x-slack-signature");
   const debug = getSlackSignatureDebugInfo(rawBody, timestamp, signature);
+  const skipVerification = env.skipSlackSignatureVerification();
 
-  if (!verifySlackSignature(rawBody, timestamp, signature)) {
+  if (!skipVerification && !verifySlackSignature(rawBody, timestamp, signature)) {
     const tokenAccepted = verifySlackVerificationToken((payload as { token?: string }).token);
 
     if (tokenAccepted) {
@@ -140,6 +142,10 @@ export async function POST(request: Request) {
     });
       return new Response("invalid signature", { status: 401 });
     }
+  }
+
+  if (skipVerification) {
+    console.warn("[slack/events] signature_verification_skipped");
   }
 
   const event = payload.event;

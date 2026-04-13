@@ -1,35 +1,39 @@
 import { defineHook } from "workflow";
 
-import { createManagedSession, sendMessageAndCollectResponse } from "@/lib/anthropic-managed-agent";
-import { formatLeadReview } from "@/lib/format-review";
 import { buildFollowUpPrompt, buildInitialLeadReviewPrompt } from "@/lib/lead-prompt";
-import { parseLeadReview } from "@/lib/parse-review";
-import { postThreadMessage } from "@/lib/slack-client";
 import type { SlackConversationInput, SlackReplyEvent } from "@/lib/types";
+import {
+  stepCreateManagedSession,
+  stepFormatLeadReview,
+  stepParseLeadReview,
+  stepPostThreadMessage,
+  stepSendMessageAndCollectResponse,
+} from "@/workflows/steps";
 
 export const slackReplyHook = defineHook<SlackReplyEvent>();
 
 export async function leadReviewWorkflow(input: SlackConversationInput) {
   "use workflow";
 
-  await postThreadMessage({
+  await stepPostThreadMessage({
     channelId: input.channelId,
     threadTs: input.threadTs,
     text: "Reviewing this lead now. I’ll post a verdict and next step here shortly.",
   });
 
-  const sessionId = await createManagedSession();
+  const sessionId = await stepCreateManagedSession();
 
-  const initialRaw = await sendMessageAndCollectResponse(
+  const initialRaw = await stepSendMessageAndCollectResponse(
     sessionId,
     buildInitialLeadReviewPrompt(input),
   );
-  const initialReview = parseLeadReview(initialRaw);
+  const initialReview = await stepParseLeadReview(initialRaw);
+  const initialFormatted = await stepFormatLeadReview(initialReview);
 
-  await postThreadMessage({
+  await stepPostThreadMessage({
     channelId: input.channelId,
     threadTs: input.threadTs,
-    text: formatLeadReview(initialReview),
+    text: initialFormatted,
   });
 
   const replies = slackReplyHook.create({
@@ -37,18 +41,19 @@ export async function leadReviewWorkflow(input: SlackConversationInput) {
   });
 
   for await (const reply of replies) {
-    const followUp = await sendMessageAndCollectResponse(
+    const followUp = await stepSendMessageAndCollectResponse(
       sessionId,
       buildFollowUpPrompt(reply.text),
     );
 
-    const maybeReview = parseLeadReview(followUp);
+    const maybeReview = await stepParseLeadReview(followUp);
     const looksStructured = maybeReview.rawText.includes("{") && maybeReview.rawText.includes("}");
+    const formatted = looksStructured ? await stepFormatLeadReview(maybeReview) : followUp;
 
-    await postThreadMessage({
+    await stepPostThreadMessage({
       channelId: input.channelId,
       threadTs: input.threadTs,
-      text: looksStructured ? formatLeadReview(maybeReview) : followUp,
+      text: formatted,
     });
   }
 }

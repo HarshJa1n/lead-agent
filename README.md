@@ -8,6 +8,12 @@ It uses:
 2. Vercel Workflow for durable Slack thread orchestration
 3. Claude Managed Agents for long-running lead research and review
 
+Important:
+
+1. The project uses `withWorkflow(...)` in `next.config.ts`
+2. That transform is required for `"use workflow"` functions to be recognized at runtime
+3. Without it, `start()` will fail with `invalid workflow function`
+
 ## What is included
 
 1. Slack webhook route for events: `/api/slack/events`
@@ -82,6 +88,7 @@ vercel env add ANTHROPIC_ENVIRONMENT_ID
 vercel env add SLACK_BOT_TOKEN
 vercel env add SLACK_SIGNING_SECRET
 vercel env add SLACK_VERIFICATION_TOKEN
+vercel env add SLACK_SKIP_SIGNATURE_VERIFICATION
 vercel env add APP_BASE_URL
 ```
 
@@ -173,6 +180,14 @@ Install the app into your workspace and copy:
 3. Verification Token -> `SLACK_VERIFICATION_TOKEN`
 
 The verification token is only used as a temporary fallback if Slack signature verification fails in your environment. The preferred path remains the signing secret.
+
+If you are blocked by Slack signature mismatches during initial testing, you can temporarily set:
+
+```text
+SLACK_SKIP_SIGNATURE_VERIFICATION=true
+```
+
+Use that only for short-lived debugging in a controlled environment, then turn it back off once the signing mismatch is resolved.
 
 ## How the workflow works
 

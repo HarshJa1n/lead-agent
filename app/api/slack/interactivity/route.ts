@@ -1,5 +1,6 @@
 import { start } from "workflow/api";
 
+import { env } from "@/lib/env";
 import { verifySlackSignature } from "@/lib/slack-signature";
 import { verifySlackVerificationToken } from "@/lib/slack-token-fallback";
 import type { SlackConversationInput } from "@/lib/types";
@@ -48,7 +49,9 @@ export async function POST(request: Request) {
   }
 
   const payload = JSON.parse(payloadValue) as SlackShortcutPayload;
-  if (!verifySlackSignature(rawBody, timestamp, signature)) {
+  const skipVerification = env.skipSlackSignatureVerification();
+
+  if (!skipVerification && !verifySlackSignature(rawBody, timestamp, signature)) {
     const tokenAccepted = verifySlackVerificationToken(
       (payload as SlackShortcutPayload & { token?: string }).token,
     );
@@ -59,6 +62,10 @@ export async function POST(request: Request) {
     }
 
     console.warn("[slack/interactivity] signature_failed_but_token_fallback_accepted");
+  }
+
+  if (skipVerification) {
+    console.warn("[slack/interactivity] signature_verification_skipped");
   }
 
   console.log("[slack/interactivity] accepted", {

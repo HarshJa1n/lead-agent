@@ -15,5 +15,6 @@ export const env = {
   slackSigningSecret: () =>
     required(process.env.SLACK_SIGNING_SECRET, "SLACK_SIGNING_SECRET"),
   slackVerificationToken: () => process.env.SLACK_VERIFICATION_TOKEN,
+  skipSlackSignatureVerification: () => process.env.SLACK_SKIP_SIGNATURE_VERIFICATION === "true",
   appBaseUrl: () => required(process.env.APP_BASE_URL, "APP_BASE_URL"),
 };
