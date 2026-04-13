@@ -1,4 +1,4 @@
-# harshja1n Lead Review Slack Agent
+#  Lead Review Slack Agent
 
 This project is a hosted Slack AI agent for lead enrichment and lead review.
 
