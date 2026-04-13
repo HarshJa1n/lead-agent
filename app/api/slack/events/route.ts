@@ -101,17 +101,23 @@ function toAssistantThreadInput(
 
 export async function POST(request: Request) {
   const rawBody = await request.text();
+  let payload: SlackEventEnvelope | null = null;
+
+  try {
+    payload = JSON.parse(rawBody) as SlackEventEnvelope;
+  } catch {
+    return new Response("invalid json", { status: 400 });
+  }
+
+  if (payload.type === "url_verification" && payload.challenge) {
+    return Response.json({ challenge: payload.challenge });
+  }
+
   const timestamp = request.headers.get("x-slack-request-timestamp");
   const signature = request.headers.get("x-slack-signature");
 
   if (!verifySlackSignature(rawBody, timestamp, signature)) {
     return new Response("invalid signature", { status: 401 });
-  }
-
-  const payload = JSON.parse(rawBody) as SlackEventEnvelope;
-
-  if (payload.type === "url_verification" && payload.challenge) {
-    return Response.json({ challenge: payload.challenge });
   }
 
   const event = payload.event;
