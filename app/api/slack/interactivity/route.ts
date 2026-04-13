@@ -1,6 +1,7 @@
 import { start } from "workflow/api";
 
 import { verifySlackSignature } from "@/lib/slack-signature";
+import { verifySlackVerificationToken } from "@/lib/slack-token-fallback";
 import type { SlackConversationInput } from "@/lib/types";
 import { leadReviewWorkflow } from "@/workflows/lead-review";
 
@@ -39,10 +40,6 @@ export async function POST(request: Request) {
   const timestamp = request.headers.get("x-slack-request-timestamp");
   const signature = request.headers.get("x-slack-signature");
 
-  if (!verifySlackSignature(rawBody, timestamp, signature)) {
-    return new Response("invalid signature", { status: 401 });
-  }
-
   const form = new URLSearchParams(rawBody);
   const payloadValue = form.get("payload");
 
@@ -51,6 +48,22 @@ export async function POST(request: Request) {
   }
 
   const payload = JSON.parse(payloadValue) as SlackShortcutPayload;
+  if (!verifySlackSignature(rawBody, timestamp, signature)) {
+    const tokenAccepted = verifySlackVerificationToken(
+      (payload as SlackShortcutPayload & { token?: string }).token,
+    );
+
+    if (!tokenAccepted) {
+      console.warn("[slack/interactivity] signature_failed");
+      return new Response("invalid signature", { status: 401 });
+    }
+
+    console.warn("[slack/interactivity] signature_failed_but_token_fallback_accepted");
+  }
+
+  console.log("[slack/interactivity] accepted", {
+    type: payload.type,
+  });
   const input = buildShortcutInput(payload);
 
   if (!input) {

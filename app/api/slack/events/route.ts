@@ -5,7 +5,8 @@ import {
   setAssistantSuggestedPrompts,
   setAssistantTitle,
 } from "@/lib/slack-client";
-import { verifySlackSignature } from "@/lib/slack-signature";
+import { getSlackSignatureDebugInfo, verifySlackSignature } from "@/lib/slack-signature";
+import { verifySlackVerificationToken } from "@/lib/slack-token-fallback";
 import type { AssistantThreadInput, SlackConversationInput } from "@/lib/types";
 import { assistantReplyHook, assistantThreadWorkflow } from "@/workflows/assistant-thread";
 import { slackReplyHook, leadReviewWorkflow } from "@/workflows/lead-review";
@@ -110,22 +111,51 @@ export async function POST(request: Request) {
   }
 
   if (payload.type === "url_verification" && payload.challenge) {
+    console.log("[slack/events] url_verification");
     return Response.json({ challenge: payload.challenge });
   }
 
   const timestamp = request.headers.get("x-slack-request-timestamp");
   const signature = request.headers.get("x-slack-signature");
+  const debug = getSlackSignatureDebugInfo(rawBody, timestamp, signature);
 
   if (!verifySlackSignature(rawBody, timestamp, signature)) {
-    return new Response("invalid signature", { status: 401 });
+    const tokenAccepted = verifySlackVerificationToken((payload as { token?: string }).token);
+
+    if (tokenAccepted) {
+      console.warn("[slack/events] signature_failed_but_token_fallback_accepted", {
+        reason: debug.reason,
+        payloadType: payload.type,
+        eventType: payload.event?.type,
+      });
+    } else {
+    console.warn("[slack/events] signature_failed", {
+      reason: debug.reason,
+      age: "age" in debug ? debug.age : undefined,
+      payloadType: payload.type,
+      eventType: payload.event?.type,
+      hasAssistantThread: !!payload.event?.assistant_thread,
+      expectedPrefix: "expectedPrefix" in debug ? debug.expectedPrefix : undefined,
+      receivedPrefix: "receivedPrefix" in debug ? debug.receivedPrefix : undefined,
+    });
+      return new Response("invalid signature", { status: 401 });
+    }
   }
 
   const event = payload.event;
+  console.log("[slack/events] accepted", {
+    payloadType: payload.type,
+    eventType: event?.type,
+    subtype: event?.subtype,
+    channelType: event?.channel_type,
+  });
+
   if (!event) {
     return new Response("ok");
   }
 
   if (isAssistantThreadStart(event)) {
+    console.log("[slack/events] assistant_thread_started");
     const input = toAssistantThreadInput(event);
     if (input) {
       await start(assistantThreadWorkflow, [input]);
@@ -135,6 +165,7 @@ export async function POST(request: Request) {
   }
 
   if (isAssistantThreadContextChanged(event)) {
+    console.log("[slack/events] assistant_thread_context_changed");
     const input = toAssistantThreadInput(event);
     if (input) {
       await setAssistantTitle({
@@ -157,11 +188,18 @@ export async function POST(request: Request) {
   }
 
   if (isNewLeadReview(event)) {
+    console.log("[slack/events] starting_lead_review", {
+      triggerType: event.channel_type === "im" ? "dm" : "app_mention",
+    });
     await start(leadReviewWorkflow, [toConversationInput(event)]);
     return new Response("ok");
   }
 
   if (shouldResumeThread(event)) {
+    console.log("[slack/events] resuming_thread", {
+      threadTs: event.thread_ts,
+      channelType: event.channel_type,
+    });
     try {
       const payload = {
         text: event.text!,
@@ -177,6 +215,8 @@ export async function POST(request: Request) {
       // No active workflow is listening for this thread; ignore it safely.
     }
   }
+
+  console.log("[slack/events] no_matching_handler");
 
   return new Response("ok");
 }

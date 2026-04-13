@@ -81,6 +81,7 @@ vercel env add ANTHROPIC_AGENT_ID
 vercel env add ANTHROPIC_ENVIRONMENT_ID
 vercel env add SLACK_BOT_TOKEN
 vercel env add SLACK_SIGNING_SECRET
+vercel env add SLACK_VERIFICATION_TOKEN
 vercel env add APP_BASE_URL
 ```
 
@@ -169,6 +170,9 @@ Install the app into your workspace and copy:
 
 1. Bot User OAuth Token -> `SLACK_BOT_TOKEN`
 2. Signing Secret -> `SLACK_SIGNING_SECRET`
+3. Verification Token -> `SLACK_VERIFICATION_TOKEN`
+
+The verification token is only used as a temporary fallback if Slack signature verification fails in your environment. The preferred path remains the signing secret.
 
 ## How the workflow works
 
