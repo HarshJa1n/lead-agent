@@ -24,7 +24,8 @@ It uses:
    - reuses the same Claude session for follow-ups
 5. A helper script to create an Anthropic managed agent and environment
 
-## Local setup
+## Local setup 
+
 
 1. Install dependencies
 
