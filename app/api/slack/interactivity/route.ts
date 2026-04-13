@@ -1,0 +1,62 @@
+import { start } from "workflow/api";
+
+import { verifySlackSignature } from "@/lib/slack-signature";
+import type { SlackConversationInput } from "@/lib/types";
+import { leadReviewWorkflow } from "@/workflows/lead-review";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+type SlackShortcutPayload = {
+  type: string;
+  user?: { id: string };
+  channel?: { id: string };
+  message?: { ts: string; text: string; thread_ts?: string };
+};
+
+function buildShortcutInput(payload: SlackShortcutPayload): SlackConversationInput | null {
+  const userId = payload.user?.id;
+  const channelId = payload.channel?.id;
+  const messageTs = payload.message?.ts;
+  const sourceText = payload.message?.text;
+
+  if (!userId || !channelId || !messageTs || !sourceText) {
+    return null;
+  }
+
+  return {
+    channelId,
+    threadTs: payload.message?.thread_ts ?? messageTs,
+    sourceMessageTs: messageTs,
+    sourceText,
+    triggerUserId: userId,
+    triggerType: "message_shortcut",
+  };
+}
+
+export async function POST(request: Request) {
+  const rawBody = await request.text();
+  const timestamp = request.headers.get("x-slack-request-timestamp");
+  const signature = request.headers.get("x-slack-signature");
+
+  if (!verifySlackSignature(rawBody, timestamp, signature)) {
+    return new Response("invalid signature", { status: 401 });
+  }
+
+  const form = new URLSearchParams(rawBody);
+  const payloadValue = form.get("payload");
+
+  if (!payloadValue) {
+    return new Response("missing payload", { status: 400 });
+  }
+
+  const payload = JSON.parse(payloadValue) as SlackShortcutPayload;
+  const input = buildShortcutInput(payload);
+
+  if (!input) {
+    return new Response("unsupported payload", { status: 400 });
+  }
+
+  await start(leadReviewWorkflow, [input]);
+  return new Response("");
+}
