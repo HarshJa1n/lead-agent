@@ -228,6 +228,7 @@ Use that only for short-lived debugging in a controlled environment, then turn i
 3. There is no persistent database yet
 4. Public and internal enrichment tools are not yet custom-wired; the managed agent currently relies on its own available tools plus your prompt
 5. Assistant context changes are handled lightly for now by refreshing prompts and title, not by re-indexing Slack context
+6. The assistant is conversational by default and only returns structured review output when the user is actually asking for lead review or enrichment
 
 ## What to build next
 

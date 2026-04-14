@@ -1,116 +1,76 @@
+import Anthropic from "@anthropic-ai/sdk";
+
 import { env } from "@/lib/env";
 
-const API_BASE = "https://api.anthropic.com/v1";
-const API_VERSION = "2023-06-01";
-const MANAGED_AGENTS_BETA = "managed-agents-2026-04-01";
+let anthropicClient: Anthropic | null = null;
 
-async function anthropicFetch(path: string, init?: RequestInit) {
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: {
-      "x-api-key": env.anthropicApiKey(),
-      "anthropic-version": API_VERSION,
-      "anthropic-beta": MANAGED_AGENTS_BETA,
-      "content-type": "application/json",
-      ...(init?.headers ?? {}),
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Anthropic request failed (${response.status}): ${await response.text()}`);
+function getClient() {
+  if (!anthropicClient) {
+    anthropicClient = new Anthropic({
+      apiKey: env.anthropicApiKey(),
+    });
   }
 
-  return response;
+  return anthropicClient;
 }
 
 export async function createManagedSession() {
-  const response = await anthropicFetch("/sessions", {
-    method: "POST",
-    body: JSON.stringify({
-      agent: env.anthropicAgentId(),
-      environment_id: env.anthropicEnvironmentId(),
-      title: "Slack lead review",
-    }),
+  const client = getClient();
+  const session = await client.beta.sessions.create({
+    agent: env.anthropicAgentId(),
+    environment_id: env.anthropicEnvironmentId(),
+    title: "Slack lead review",
   });
 
-  const payload = (await response.json()) as { id: string };
-  return payload.id;
-}
-
-async function sendUserMessage(sessionId: string, prompt: string) {
-  await anthropicFetch(`/sessions/${sessionId}/events`, {
-    method: "POST",
-    body: JSON.stringify({
-      events: [
-        {
-          type: "user.message",
-          content: [{ type: "text", text: prompt }],
-        },
-      ],
-    }),
+  console.log("[anthropic] create_session_ok", {
+    sessionId: session.id,
   });
+
+  return session.id;
 }
 
 export async function sendMessageAndCollectResponse(sessionId: string, prompt: string) {
-  await sendUserMessage(sessionId, prompt);
+  const client = getClient();
+  const stream = await client.beta.sessions.events.stream(sessionId);
 
-  const response = await fetch(`${API_BASE}/sessions/${sessionId}/stream`, {
-    headers: {
-      "x-api-key": env.anthropicApiKey(),
-      "anthropic-version": API_VERSION,
-      "anthropic-beta": MANAGED_AGENTS_BETA,
-      Accept: "text/event-stream",
-    },
+  await client.beta.sessions.events.send(sessionId, {
+    events: [
+      {
+        type: "user.message",
+        content: [{ type: "text", text: prompt }],
+      },
+    ],
   });
 
-  if (!response.ok || !response.body) {
-    throw new Error(`Anthropic stream failed (${response.status}): ${await response.text()}`);
-  }
+  console.log("[anthropic] send_user_message_ok", {
+    sessionId,
+  });
 
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
   let output = "";
 
-  while (true) {
-    const { done, value } = await reader.read();
-
-    if (done) {
-      break;
-    }
-
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-
-    for (const line of lines) {
-      if (!line.startsWith("data:")) {
-        continue;
-      }
-
-      const json = line.slice(5).trim();
-      if (!json) {
-        continue;
-      }
-
-      const event = JSON.parse(json) as {
-        type: string;
-        content?: Array<{ type: string; text?: string }>;
-      };
-
-      if (event.type === "agent.message") {
-        for (const block of event.content ?? []) {
-          if (block.type === "text" && block.text) {
-            output += block.text;
-          }
+  for await (const event of stream) {
+    if (event.type === "agent.message") {
+      for (const block of event.content) {
+        if (block.type === "text") {
+          output += block.text;
         }
       }
+    } else if (event.type === "session.status_idle") {
+      console.log("[anthropic] stream_idle", {
+        sessionId,
+        textLength: output.length,
+        textPreview: output.slice(0, 160),
+      });
 
-      if (event.type === "session.status_idle") {
-        return output.trim();
-      }
+      return output.trim();
     }
   }
+
+  console.log("[anthropic] stream_done_without_idle", {
+    sessionId,
+    textLength: output.length,
+    textPreview: output.slice(0, 160),
+  });
 
   return output.trim();
 }

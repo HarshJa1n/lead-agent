@@ -26,19 +26,11 @@ const extractJsonBlock = (text: string) => {
   return null;
 };
 
-export function parseLeadReview(text: string): LeadReviewResult {
+export function maybeParseLeadReview(text: string): LeadReviewResult | null {
   const jsonBlock = extractJsonBlock(text);
 
   if (!jsonBlock) {
-    return {
-      verdict: "Review completed",
-      whyPromising: [],
-      risks: [],
-      missingInformation: [],
-      recommendedNextStep: "Open the raw response and review details manually.",
-      confidence: "Unknown",
-      rawText: text,
-    };
+    return null;
   }
 
   try {
@@ -49,7 +41,13 @@ export function parseLeadReview(text: string): LeadReviewResult {
       rawText: text,
     };
   } catch {
-    return {
+    return null;
+  }
+}
+
+export function parseLeadReview(text: string): LeadReviewResult {
+  return (
+    maybeParseLeadReview(text) ?? {
       verdict: "Review completed",
       whyPromising: [],
       risks: [],
@@ -57,6 +55,6 @@ export function parseLeadReview(text: string): LeadReviewResult {
       recommendedNextStep: "Open the raw response and review details manually.",
       confidence: "Unknown",
       rawText: text,
-    };
-  }
+    }
+  );
 }

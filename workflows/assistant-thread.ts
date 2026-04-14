@@ -17,7 +17,15 @@ export const assistantReplyHook = defineHook<SlackReplyEvent>();
 export async function assistantThreadWorkflow(input: AssistantThreadInput) {
   "use workflow";
 
+  console.log("[workflow] assistant_thread_start", {
+    channelId: input.channelId,
+    threadTs: input.threadTs,
+    userId: input.userId,
+    contextChannelId: input.context.channelId,
+  });
+
   const sessionId = await stepCreateManagedSession();
+  console.log("[workflow] assistant_thread_session_ready", { sessionId });
 
   await stepSetAssistantTitle({
     channelId: input.channelId,
@@ -43,6 +51,13 @@ export async function assistantThreadWorkflow(input: AssistantThreadInput) {
   });
 
   for await (const reply of replies) {
+    console.log("[workflow] assistant_thread_reply_received", {
+      sessionId,
+      userId: reply.userId,
+      textLength: reply.text.length,
+      textPreview: reply.text.slice(0, 120),
+    });
+
     await stepSetAssistantStatus({
       channelId: input.channelId,
       threadTs: input.threadTs,
@@ -58,11 +73,19 @@ export async function assistantThreadWorkflow(input: AssistantThreadInput) {
       sessionId,
       buildFollowUpPrompt(reply.text),
     );
+    console.log("[workflow] assistant_thread_response", {
+      sessionId,
+      textLength: response.length,
+      textPreview: response.slice(0, 160),
+    });
 
-    await stepPostThreadMessage({
-      channelId: input.channelId,
-      threadTs: input.threadTs,
-      text: response,
+  await stepPostThreadMessage({
+    channelId: input.channelId,
+    threadTs: input.threadTs,
+    text: response,
+  });
+    console.log("[workflow] assistant_thread_posted_reply", {
+      sessionId,
     });
 
     await stepSetAssistantStatus({

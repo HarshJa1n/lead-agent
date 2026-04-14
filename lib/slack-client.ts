@@ -24,13 +24,21 @@ export async function postThreadMessage(params: {
   threadTs: string;
 }) {
   const client = getSlackClient();
-  return client.chat.postMessage({
+  const response = await client.chat.postMessage({
     channel: params.channelId,
     text: params.text,
     thread_ts: params.threadTs,
     unfurl_links: false,
     unfurl_media: false,
   });
+
+  console.log("[slack/client] post_message_ok", {
+    channelId: params.channelId,
+    threadTs: params.threadTs,
+    ts: response.ts,
+  });
+
+  return response;
 }
 
 export async function setAssistantSuggestedPrompts(params: {
@@ -40,12 +48,19 @@ export async function setAssistantSuggestedPrompts(params: {
   title?: string;
 }) {
   const client = getSlackClient();
-  return client.assistant.threads.setSuggestedPrompts({
+  const response = await client.assistant.threads.setSuggestedPrompts({
     channel_id: params.channelId,
     thread_ts: params.threadTs,
     prompts: params.prompts,
     title: params.title,
   });
+
+  console.log("[slack/client] set_suggested_prompts_ok", {
+    channelId: params.channelId,
+    threadTs: params.threadTs,
+  });
+
+  return response;
 }
 
 export async function setAssistantStatus(params: {
@@ -55,12 +70,20 @@ export async function setAssistantStatus(params: {
   loadingMessages?: string[];
 }) {
   const client = getSlackClient();
-  return client.assistant.threads.setStatus({
+  const response = await client.assistant.threads.setStatus({
     channel_id: params.channelId,
     thread_ts: params.threadTs,
     status: params.status,
     loading_messages: params.loadingMessages,
   });
+
+  console.log("[slack/client] set_status_ok", {
+    channelId: params.channelId,
+    threadTs: params.threadTs,
+    status: params.status,
+  });
+
+  return response;
 }
 
 export async function setAssistantTitle(params: {
@@ -69,9 +92,17 @@ export async function setAssistantTitle(params: {
   title: string;
 }) {
   const client = getSlackClient();
-  return client.assistant.threads.setTitle({
+  const response = await client.assistant.threads.setTitle({
     channel_id: params.channelId,
     thread_ts: params.threadTs,
     title: params.title,
   });
+
+  console.log("[slack/client] set_title_ok", {
+    channelId: params.channelId,
+    threadTs: params.threadTs,
+    title: params.title,
+  });
+
+  return response;
 }

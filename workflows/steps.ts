@@ -1,6 +1,6 @@
 import { createManagedSession, sendMessageAndCollectResponse } from "@/lib/anthropic-managed-agent";
 import { formatLeadReview } from "@/lib/format-review";
-import { parseLeadReview } from "@/lib/parse-review";
+import { maybeParseLeadReview, parseLeadReview } from "@/lib/parse-review";
 import {
   postThreadMessage,
   setAssistantStatus,
@@ -67,6 +67,12 @@ export async function stepParseLeadReview(text: string): Promise<LeadReviewResul
   "use step";
 
   return parseLeadReview(text);
+}
+
+export async function stepMaybeParseLeadReview(text: string): Promise<LeadReviewResult | null> {
+  "use step";
+
+  return maybeParseLeadReview(text);
 }
 
 export async function stepFormatLeadReview(result: LeadReviewResult) {
