@@ -181,6 +181,13 @@ Install the app into your workspace and copy:
 
 The verification token is only used as a temporary fallback if Slack signature verification fails in your environment. The preferred path remains the signing secret.
 
+Paste tokens as raw values only:
+
+1. Do not include `Bearer `
+2. Do not include quotes
+3. Do not include trailing spaces or newlines
+4. `SLACK_BOT_TOKEN` should start with `xoxb-`
+
 If you are blocked by Slack signature mismatches during initial testing, you can temporarily set:
 
 ```text

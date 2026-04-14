@@ -6,7 +6,13 @@ let slackClient: WebClient | null = null;
 
 export function getSlackClient() {
   if (!slackClient) {
-    slackClient = new WebClient(env.slackBotToken());
+    const token = env.slackBotToken();
+
+    if (!token.startsWith("xoxb-")) {
+      throw new Error("SLACK_BOT_TOKEN must be a bot token starting with xoxb-");
+    }
+
+    slackClient = new WebClient(token);
   }
 
   return slackClient;

@@ -15,13 +15,13 @@ export const slackReplyHook = defineHook<SlackReplyEvent>();
 export async function leadReviewWorkflow(input: SlackConversationInput) {
   "use workflow";
 
+  const sessionId = await stepCreateManagedSession();
+
   await stepPostThreadMessage({
     channelId: input.channelId,
     threadTs: input.threadTs,
     text: "Reviewing this lead now. I’ll post a verdict and next step here shortly.",
   });
-
-  const sessionId = await stepCreateManagedSession();
 
   const initialRaw = await stepSendMessageAndCollectResponse(
     sessionId,

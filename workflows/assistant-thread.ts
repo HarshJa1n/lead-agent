@@ -17,6 +17,8 @@ export const assistantReplyHook = defineHook<SlackReplyEvent>();
 export async function assistantThreadWorkflow(input: AssistantThreadInput) {
   "use workflow";
 
+  const sessionId = await stepCreateManagedSession();
+
   await stepSetAssistantTitle({
     channelId: input.channelId,
     threadTs: input.threadTs,
@@ -36,8 +38,6 @@ export async function assistantThreadWorkflow(input: AssistantThreadInput) {
     text:
       "I’m ready to help with lead review and enrichment. Paste a lead, ask a qualification question, or use one of the suggested prompts above.",
   });
-
-  const sessionId = await stepCreateManagedSession();
   const replies = assistantReplyHook.create({
     token: `assistant-thread:${input.channelId}:${input.threadTs}`,
   });
