@@ -1,13 +1,12 @@
-import { createManagedSession, sendMessageAndCollectResponse } from "@/lib/anthropic-managed-agent";
-import { formatLeadReview } from "@/lib/format-review";
-import { maybeParseLeadReview, parseLeadReview } from "@/lib/parse-review";
 import {
-  postThreadMessage,
+  createManagedSession,
+  streamMessageToSlack,
+} from "@/lib/anthropic-managed-agent";
+import {
   setAssistantStatus,
   setAssistantSuggestedPrompts,
   setAssistantTitle,
 } from "@/lib/slack-client";
-import type { LeadReviewResult } from "@/lib/types";
 
 export async function stepCreateManagedSession() {
   "use step";
@@ -15,20 +14,17 @@ export async function stepCreateManagedSession() {
   return createManagedSession();
 }
 
-export async function stepSendMessageAndCollectResponse(sessionId: string, prompt: string) {
-  "use step";
-
-  return sendMessageAndCollectResponse(sessionId, prompt);
-}
-
-export async function stepPostThreadMessage(params: {
+export async function stepStreamManagedResponseToSlack(params: {
+  sessionId: string;
+  prompt: string;
   channelId: string;
   threadTs: string;
-  text: string;
+  recipientTeamId?: string;
+  recipientUserId?: string;
 }) {
   "use step";
 
-  return postThreadMessage(params);
+  return streamMessageToSlack(params);
 }
 
 export async function stepSetAssistantTitle(params: {
@@ -61,22 +57,4 @@ export async function stepSetAssistantStatus(params: {
   "use step";
 
   return setAssistantStatus(params);
-}
-
-export async function stepParseLeadReview(text: string): Promise<LeadReviewResult> {
-  "use step";
-
-  return parseLeadReview(text);
-}
-
-export async function stepMaybeParseLeadReview(text: string): Promise<LeadReviewResult | null> {
-  "use step";
-
-  return maybeParseLeadReview(text);
-}
-
-export async function stepFormatLeadReview(result: LeadReviewResult) {
-  "use step";
-
-  return formatLeadReview(result);
 }

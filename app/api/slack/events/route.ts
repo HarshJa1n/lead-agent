@@ -17,6 +17,7 @@ export const dynamic = "force-dynamic";
 
 type SlackEventEnvelope = {
   type: string;
+  team_id?: string;
   challenge?: string;
   event?: {
     type?: string;
@@ -69,13 +70,17 @@ function isNewLeadReview(event: NonNullable<SlackEventEnvelope["event"]>) {
   return event.type === "app_mention" && !event.thread_ts;
 }
 
-function toConversationInput(event: NonNullable<SlackEventEnvelope["event"]>): SlackConversationInput {
+function toConversationInput(
+  event: NonNullable<SlackEventEnvelope["event"]>,
+  teamId?: string,
+): SlackConversationInput {
   return {
     channelId: event.channel!,
     threadTs: event.thread_ts ?? event.ts!,
     sourceMessageTs: event.ts!,
     sourceText: event.text!,
     triggerUserId: event.user!,
+    teamId,
     triggerType: event.channel_type === "im" ? "dm" : "app_mention",
   };
 }
@@ -197,7 +202,7 @@ export async function POST(request: Request) {
     console.log("[slack/events] starting_lead_review", {
       triggerType: event.channel_type === "im" ? "dm" : "app_mention",
     });
-    await start(leadReviewWorkflow, [toConversationInput(event)]);
+    await start(leadReviewWorkflow, [toConversationInput(event, payload.team_id)]);
     return new Response("ok");
   }
 

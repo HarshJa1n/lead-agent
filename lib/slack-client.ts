@@ -41,6 +41,24 @@ export async function postThreadMessage(params: {
   return response;
 }
 
+export function createThreadStreamer(params: {
+  channelId: string;
+  threadTs: string;
+  recipientTeamId?: string;
+  recipientUserId?: string;
+  bufferSize?: number;
+}) {
+  const client = getSlackClient();
+
+  return client.chatStream({
+    channel: params.channelId,
+    thread_ts: params.threadTs,
+    recipient_team_id: params.recipientTeamId,
+    recipient_user_id: params.recipientUserId,
+    buffer_size: params.bufferSize ?? 180,
+  });
+}
+
 export async function setAssistantSuggestedPrompts(params: {
   channelId: string;
   threadTs: string;

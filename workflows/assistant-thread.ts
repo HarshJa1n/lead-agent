@@ -5,11 +5,10 @@ import { buildFollowUpPrompt } from "@/lib/lead-prompt";
 import type { AssistantThreadInput, SlackReplyEvent } from "@/lib/types";
 import {
   stepCreateManagedSession,
-  stepPostThreadMessage,
-  stepSendMessageAndCollectResponse,
   stepSetAssistantStatus,
   stepSetAssistantSuggestedPrompts,
   stepSetAssistantTitle,
+  stepStreamManagedResponseToSlack,
 } from "@/workflows/steps";
 
 export const assistantReplyHook = defineHook<SlackReplyEvent>();
@@ -39,13 +38,6 @@ export async function assistantThreadWorkflow(input: AssistantThreadInput) {
     title: "Try one of these",
     prompts: getAssistantSuggestedPrompts(),
   });
-
-  await stepPostThreadMessage({
-    channelId: input.channelId,
-    threadTs: input.threadTs,
-    text:
-      "I’m ready to help with lead review and enrichment. Paste a lead, ask a qualification question, or use one of the suggested prompts above.",
-  });
   const replies = assistantReplyHook.create({
     token: `assistant-thread:${input.channelId}:${input.threadTs}`,
   });
@@ -69,23 +61,18 @@ export async function assistantThreadWorkflow(input: AssistantThreadInput) {
       ],
     });
 
-    const response = await stepSendMessageAndCollectResponse(
+    await stepStreamManagedResponseToSlack({
       sessionId,
-      buildFollowUpPrompt(reply.text),
-    );
+      prompt: buildFollowUpPrompt(reply.text),
+      channelId: input.channelId,
+      threadTs: input.threadTs,
+      recipientTeamId: input.context.teamId,
+      recipientUserId: reply.userId,
+    });
     console.log("[workflow] assistant_thread_response", {
       sessionId,
-      textLength: response.length,
-      textPreview: response.slice(0, 160),
-    });
-
-  await stepPostThreadMessage({
-    channelId: input.channelId,
-    threadTs: input.threadTs,
-    text: response,
-  });
-    console.log("[workflow] assistant_thread_posted_reply", {
-      sessionId,
+      channelId: input.channelId,
+      threadTs: input.threadTs,
     });
 
     await stepSetAssistantStatus({

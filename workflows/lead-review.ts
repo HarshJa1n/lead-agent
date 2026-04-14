@@ -4,10 +4,7 @@ import { buildFollowUpPrompt, buildInitialLeadReviewPrompt } from "@/lib/lead-pr
 import type { SlackConversationInput, SlackReplyEvent } from "@/lib/types";
 import {
   stepCreateManagedSession,
-  stepFormatLeadReview,
-  stepMaybeParseLeadReview,
-  stepPostThreadMessage,
-  stepSendMessageAndCollectResponse,
+  stepStreamManagedResponseToSlack,
 } from "@/workflows/steps";
 
 export const slackReplyHook = defineHook<SlackReplyEvent>();
@@ -25,35 +22,18 @@ export async function leadReviewWorkflow(input: SlackConversationInput) {
   const sessionId = await stepCreateManagedSession();
   console.log("[workflow] lead_review_session_ready", { sessionId });
 
-  await stepPostThreadMessage({
+  await stepStreamManagedResponseToSlack({
+    sessionId,
+    prompt: buildInitialLeadReviewPrompt(input),
     channelId: input.channelId,
     threadTs: input.threadTs,
-    text: "Reviewing this lead now. I’ll post a verdict and next step here shortly.",
+    recipientTeamId: input.teamId,
+    recipientUserId: input.triggerUserId,
   });
-
-  const initialRaw = await stepSendMessageAndCollectResponse(
-    sessionId,
-    buildInitialLeadReviewPrompt(input),
-  );
   console.log("[workflow] lead_review_initial_response", {
     sessionId,
-    textLength: initialRaw.length,
-    textPreview: initialRaw.slice(0, 160),
-  });
-
-  const initialReview = await stepMaybeParseLeadReview(initialRaw);
-  const initialFormatted = initialReview
-    ? await stepFormatLeadReview(initialReview)
-    : initialRaw;
-
-  await stepPostThreadMessage({
     channelId: input.channelId,
     threadTs: input.threadTs,
-    text: initialFormatted,
-  });
-  console.log("[workflow] lead_review_posted_initial_reply", {
-    sessionId,
-    structured: !!initialReview,
   });
 
   const replies = slackReplyHook.create({
@@ -68,27 +48,18 @@ export async function leadReviewWorkflow(input: SlackConversationInput) {
       textPreview: reply.text.slice(0, 120),
     });
 
-    const followUp = await stepSendMessageAndCollectResponse(
+    await stepStreamManagedResponseToSlack({
       sessionId,
-      buildFollowUpPrompt(reply.text),
-    );
-    console.log("[workflow] lead_review_followup_response", {
-      sessionId,
-      textLength: followUp.length,
-      textPreview: followUp.slice(0, 160),
-    });
-
-    const maybeReview = await stepMaybeParseLeadReview(followUp);
-    const formatted = maybeReview ? await stepFormatLeadReview(maybeReview) : followUp;
-
-    await stepPostThreadMessage({
+      prompt: buildFollowUpPrompt(reply.text),
       channelId: input.channelId,
       threadTs: input.threadTs,
-      text: formatted,
+      recipientTeamId: input.teamId,
+      recipientUserId: reply.userId,
     });
-    console.log("[workflow] lead_review_posted_followup_reply", {
+    console.log("[workflow] lead_review_followup_response", {
       sessionId,
-      structured: !!maybeReview,
+      channelId: input.channelId,
+      threadTs: input.threadTs,
     });
   }
 }
