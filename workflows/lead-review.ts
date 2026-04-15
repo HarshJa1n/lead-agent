@@ -3,6 +3,7 @@ import { defineHook } from "workflow";
 import { buildFollowUpPrompt, buildInitialLeadReviewPrompt } from "@/lib/lead-prompt";
 import type { SlackConversationInput, SlackReplyEvent } from "@/lib/types";
 import {
+  stepAddReaction,
   stepCreateManagedSession,
   stepStreamManagedResponseToSlack,
 } from "@/workflows/steps";
@@ -18,6 +19,14 @@ export async function leadReviewWorkflow(input: SlackConversationInput) {
     triggerType: input.triggerType,
     sourceMessageTs: input.sourceMessageTs,
   });
+
+  if (input.triggerType === "dm" || input.triggerType === "message_shortcut") {
+    await stepAddReaction({
+      channelId: input.channelId,
+      timestamp: input.sourceMessageTs,
+      name: "eyes",
+    });
+  }
 
   const sessionId = await stepCreateManagedSession();
   console.log("[workflow] lead_review_session_ready", { sessionId });

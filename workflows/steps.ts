@@ -6,6 +6,8 @@ import {
   setAssistantStatus,
   setAssistantSuggestedPrompts,
   setAssistantTitle,
+  addReaction,
+  postEphemeralMessage,
 } from "@/lib/slack-client";
 
 export async function stepCreateManagedSession() {
@@ -57,4 +59,25 @@ export async function stepSetAssistantStatus(params: {
   "use step";
 
   return setAssistantStatus(params);
+}
+
+export async function stepAddReaction(params: {
+  channelId: string;
+  timestamp: string;
+  name: string;
+}) {
+  "use step";
+
+  return addReaction(params);
+}
+
+export async function stepPostEphemeralMessage(params: {
+  channelId: string;
+  userId: string;
+  threadTs?: string;
+  text: string;
+}) {
+  "use step";
+
+  return postEphemeralMessage(params);
 }

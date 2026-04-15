@@ -1,6 +1,7 @@
 import { start } from "workflow/api";
 
 import { env } from "@/lib/env";
+import { postEphemeralMessage } from "@/lib/slack-client";
 import { verifySlackSignature } from "@/lib/slack-signature";
 import { verifySlackVerificationToken } from "@/lib/slack-token-fallback";
 import type { SlackConversationInput } from "@/lib/types";
@@ -14,6 +15,7 @@ type SlackShortcutPayload = {
   user?: { id: string };
   channel?: { id: string };
   message?: { ts: string; text: string; thread_ts?: string };
+  actions?: Array<{ action_id?: string; value?: string }>;
 };
 
 function buildShortcutInput(payload: SlackShortcutPayload): SlackConversationInput | null {
@@ -71,6 +73,30 @@ export async function POST(request: Request) {
   console.log("[slack/interactivity] accepted", {
     type: payload.type,
   });
+
+  if (payload.type === "block_actions" && payload.actions?.[0]?.action_id === "feedback") {
+    const feedbackValue = payload.actions[0]?.value;
+    const userId = payload.user?.id;
+    const channelId = payload.channel?.id;
+    const messageTs = payload.message?.ts;
+
+    if (!feedbackValue || !userId || !channelId || !messageTs) {
+      return new Response("");
+    }
+
+    await postEphemeralMessage({
+      channelId,
+      userId,
+      threadTs: messageTs,
+      text:
+        feedbackValue === "good-feedback"
+          ? "Glad that was helpful."
+          : "Thanks for the feedback. I’ll keep the next reply tighter and more useful.",
+    });
+
+    return new Response("");
+  }
+
   const input = buildShortcutInput(payload);
 
   if (!input) {

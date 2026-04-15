@@ -3,6 +3,7 @@ import { start } from "workflow/api";
 import { getAssistantSuggestedPrompts } from "@/lib/assistant-prompts";
 import { env } from "@/lib/env";
 import {
+  addReaction,
   setAssistantSuggestedPrompts,
   setAssistantTitle,
 } from "@/lib/slack-client";
@@ -202,6 +203,15 @@ export async function POST(request: Request) {
     console.log("[slack/events] starting_lead_review", {
       triggerType: event.channel_type === "im" ? "dm" : "app_mention",
     });
+
+    if (event.type === "app_mention" && !event.thread_ts) {
+      await addReaction({
+        channelId: event.channel!,
+        timestamp: event.ts!,
+        name: "eyes",
+      });
+    }
+
     await start(leadReviewWorkflow, [toConversationInput(event, payload.team_id)]);
     return new Response("ok");
   }

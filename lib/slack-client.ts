@@ -59,6 +59,34 @@ export function createThreadStreamer(params: {
   });
 }
 
+export async function addReaction(params: {
+  channelId: string;
+  timestamp: string;
+  name: string;
+}) {
+  const client = getSlackClient();
+  return client.reactions.add({
+    channel: params.channelId,
+    timestamp: params.timestamp,
+    name: params.name,
+  });
+}
+
+export async function postEphemeralMessage(params: {
+  channelId: string;
+  userId: string;
+  threadTs?: string;
+  text: string;
+}) {
+  const client = getSlackClient();
+  return client.chat.postEphemeral({
+    channel: params.channelId,
+    user: params.userId,
+    thread_ts: params.threadTs,
+    text: params.text,
+  });
+}
+
 export async function setAssistantSuggestedPrompts(params: {
   channelId: string;
   threadTs: string;

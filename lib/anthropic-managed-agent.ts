@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 
 import { env } from "@/lib/env";
+import { buildFeedbackBlocks } from "@/lib/slack-feedback";
 import { createThreadStreamer } from "@/lib/slack-client";
 
 let anthropicClient: Anthropic | null = null;
@@ -120,7 +121,9 @@ export async function streamMessageToSlack(params: {
           }
         }
       } else if (event.type === "session.status_idle") {
-        await streamer.stop();
+        await streamer.stop({
+          blocks: buildFeedbackBlocks(),
+        });
 
         console.log("[anthropic] stream_idle", {
           sessionId: params.sessionId,
@@ -132,12 +135,15 @@ export async function streamMessageToSlack(params: {
       }
     }
 
-    await streamer.stop();
+    await streamer.stop({
+      blocks: buildFeedbackBlocks(),
+    });
   } catch (error) {
     await streamer.stop({
       markdown_text:
         output.trim() ||
         "I hit a delivery problem while streaming this response. Please try again.",
+      blocks: buildFeedbackBlocks(),
     });
     throw error;
   }
