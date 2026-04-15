@@ -63,7 +63,9 @@ export async function assistantThreadWorkflow(input: AssistantThreadInput) {
 
     await stepStreamManagedResponseToSlack({
       sessionId,
-      prompt: buildFollowUpPrompt(reply.text),
+      prompt: buildFollowUpPrompt({
+        userMessage: reply.text,
+      }),
       channelId: input.channelId,
       threadTs: input.threadTs,
       recipientTeamId: input.context.teamId,

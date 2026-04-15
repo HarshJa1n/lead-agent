@@ -1,6 +1,10 @@
 import { defineHook } from "workflow";
 
-import { buildFollowUpPrompt, buildInitialLeadReviewPrompt } from "@/lib/lead-prompt";
+import {
+  buildFollowUpPrompt,
+  buildInitialLeadReviewPrompt,
+  stripSlackMentions,
+} from "@/lib/lead-prompt";
 import type { SlackConversationInput, SlackReplyEvent } from "@/lib/types";
 import {
   stepAddReaction,
@@ -71,9 +75,23 @@ export async function leadReviewWorkflow(input: SlackConversationInput) {
       textPreview: reply.text.slice(0, 120),
     });
 
+    const followUpThreadContext = await stepFetchThreadTranscript({
+      channelId: input.channelId,
+      threadTs: input.threadTs,
+    });
+    console.log("[workflow] lead_review_followup_thread_context_loaded", {
+      channelId: input.channelId,
+      threadTs: input.threadTs,
+      transcriptLength: followUpThreadContext.length,
+    });
+
     await stepStreamManagedResponseToSlack({
       sessionId,
-      prompt: buildFollowUpPrompt(reply.text),
+      prompt: buildFollowUpPrompt({
+        userMessage: reply.text,
+        cleanedUserMessage: stripSlackMentions(reply.text),
+        threadContext: followUpThreadContext,
+      }),
       channelId: input.channelId,
       threadTs: input.threadTs,
       recipientTeamId: input.teamId,

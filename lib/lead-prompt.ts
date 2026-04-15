@@ -1,5 +1,9 @@
 import type { SlackConversationInput } from "@/lib/types";
 
+export function stripSlackMentions(text: string) {
+  return text.replace(/<@[A-Z0-9]+>/g, "").trim();
+}
+
 export function buildInitialLeadReviewPrompt(input: SlackConversationInput) {
   return `
 You are a Slack-based lead review and enrichment assistant.
@@ -28,15 +32,21 @@ ${input.threadContext ? `- Existing Slack thread transcript:\n${input.threadCont
   `.trim();
 }
 
-export function buildFollowUpPrompt(userMessage: string) {
+export function buildFollowUpPrompt(params: {
+  userMessage: string;
+  cleanedUserMessage?: string;
+  threadContext?: string;
+}) {
   return `
 Answer the user's follow-up in a concise Slack-friendly way.
 
 If the user is asking for a refreshed lead verdict, review, qualification, enrichment, or score, answer in clean markdown with short sections or bullets.
 If the user is asking a normal follow-up question or chatting, answer naturally in short markdown.
 Do not emit JSON unless the user explicitly asks for JSON.
+Use the Slack thread transcript as the source of truth when the latest message is terse or just says something like "enrich this lead".
 
 User follow-up:
-${userMessage}
+${params.cleanedUserMessage || params.userMessage}
+${params.threadContext ? `Current Slack thread transcript:\n${params.threadContext}` : ""}
   `.trim();
 }
