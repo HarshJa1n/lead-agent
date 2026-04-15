@@ -33,6 +33,7 @@ function buildShortcutInput(payload: SlackShortcutPayload): SlackConversationInp
     threadTs: payload.message?.thread_ts ?? messageTs,
     sourceMessageTs: messageTs,
     sourceText,
+    cleanedSourceText: sourceText,
     triggerUserId: userId,
     triggerType: "message_shortcut",
   };

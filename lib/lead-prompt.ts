@@ -22,8 +22,9 @@ Lead context:
 - Slack channel id: ${input.channelId}
 - Slack thread ts: ${input.threadTs}
 - Submitted by user: ${input.triggerUserId}
-- Source message:
-${input.sourceText}
+- Invocation message:
+${input.cleanedSourceText || input.sourceText}
+${input.threadContext ? `- Existing Slack thread transcript:\n${input.threadContext}` : ""}
   `.trim();
 }
 

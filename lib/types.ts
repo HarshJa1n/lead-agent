@@ -3,8 +3,10 @@ export type SlackConversationInput = {
   threadTs: string;
   sourceMessageTs: string;
   sourceText: string;
+  cleanedSourceText: string;
   triggerUserId: string;
   teamId?: string;
+  threadContext?: string;
   triggerType: "app_mention" | "message_shortcut" | "dm" | "assistant";
 };
 

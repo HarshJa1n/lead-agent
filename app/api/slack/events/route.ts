@@ -75,11 +75,14 @@ function toConversationInput(
   event: NonNullable<SlackEventEnvelope["event"]>,
   teamId?: string,
 ): SlackConversationInput {
+  const cleanedSourceText = (event.text ?? "").replace(/<@[A-Z0-9]+>/g, "").trim();
+
   return {
     channelId: event.channel!,
     threadTs: event.thread_ts ?? event.ts!,
     sourceMessageTs: event.ts!,
     sourceText: event.text!,
+    cleanedSourceText,
     triggerUserId: event.user!,
     teamId,
     triggerType: event.channel_type === "im" ? "dm" : "app_mention",

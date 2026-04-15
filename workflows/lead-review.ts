@@ -5,6 +5,7 @@ import type { SlackConversationInput, SlackReplyEvent } from "@/lib/types";
 import {
   stepAddReaction,
   stepCreateManagedSession,
+  stepFetchThreadTranscript,
   stepStreamManagedResponseToSlack,
 } from "@/workflows/steps";
 
@@ -31,9 +32,22 @@ export async function leadReviewWorkflow(input: SlackConversationInput) {
   const sessionId = await stepCreateManagedSession();
   console.log("[workflow] lead_review_session_ready", { sessionId });
 
+  const threadContext = await stepFetchThreadTranscript({
+    channelId: input.channelId,
+    threadTs: input.threadTs,
+  });
+  console.log("[workflow] lead_review_thread_context_loaded", {
+    channelId: input.channelId,
+    threadTs: input.threadTs,
+    transcriptLength: threadContext.length,
+  });
+
   await stepStreamManagedResponseToSlack({
     sessionId,
-    prompt: buildInitialLeadReviewPrompt(input),
+    prompt: buildInitialLeadReviewPrompt({
+      ...input,
+      threadContext,
+    }),
     channelId: input.channelId,
     threadTs: input.threadTs,
     recipientTeamId: input.teamId,

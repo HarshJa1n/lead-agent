@@ -152,3 +152,45 @@ export async function setAssistantTitle(params: {
 
   return response;
 }
+
+function formatThreadSpeaker(message: {
+  user?: string;
+  bot_id?: string;
+  username?: string;
+  ts?: string;
+}) {
+  if (message.user) {
+    return `<@${message.user}>`;
+  }
+
+  if (message.username) {
+    return message.username;
+  }
+
+  if (message.bot_id) {
+    return `bot:${message.bot_id}`;
+  }
+
+  return "unknown";
+}
+
+export async function fetchThreadTranscript(params: {
+  channelId: string;
+  threadTs: string;
+  limit?: number;
+}) {
+  const client = getSlackClient();
+  const response = await client.conversations.replies({
+    channel: params.channelId,
+    ts: params.threadTs,
+    limit: params.limit ?? 30,
+    inclusive: true,
+  });
+
+  const messages = response.messages ?? [];
+
+  return messages
+    .filter((message) => typeof message.text === "string" && message.text.trim().length > 0)
+    .map((message) => `${formatThreadSpeaker(message)}: ${message.text?.trim()}`)
+    .join("\n");
+}

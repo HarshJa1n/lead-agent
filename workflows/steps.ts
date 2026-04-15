@@ -7,6 +7,7 @@ import {
   setAssistantSuggestedPrompts,
   setAssistantTitle,
   addReaction,
+  fetchThreadTranscript,
   postEphemeralMessage,
 } from "@/lib/slack-client";
 
@@ -80,4 +81,14 @@ export async function stepPostEphemeralMessage(params: {
   "use step";
 
   return postEphemeralMessage(params);
+}
+
+export async function stepFetchThreadTranscript(params: {
+  channelId: string;
+  threadTs: string;
+  limit?: number;
+}) {
+  "use step";
+
+  return fetchThreadTranscript(params);
 }
