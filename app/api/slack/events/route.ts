@@ -216,6 +216,40 @@ export async function POST(request: Request) {
     return new Response("ok");
   }
 
+  if (event.type === "app_mention" && event.thread_ts && !event.subtype && !event.bot_id) {
+    console.log("[slack/events] thread_mention_received", {
+      channelId: event.channel,
+      threadTs: event.thread_ts,
+    });
+
+    const replyPayload = {
+      text: event.text!,
+      userId: event.user!,
+    };
+
+    try {
+      await slackReplyHook.resume(`lead-thread:${event.channel}:${event.thread_ts}`, replyPayload);
+      console.log("[slack/events] thread_mention_resumed_existing_workflow", {
+        channelId: event.channel,
+        threadTs: event.thread_ts,
+      });
+    } catch {
+      await addReaction({
+        channelId: event.channel!,
+        timestamp: event.ts!,
+        name: "eyes",
+      });
+
+      await start(leadReviewWorkflow, [toConversationInput(event, payload.team_id)]);
+      console.log("[slack/events] thread_mention_started_new_workflow", {
+        channelId: event.channel,
+        threadTs: event.thread_ts,
+      });
+    }
+
+    return new Response("ok");
+  }
+
   if (shouldResumeThread(event)) {
     console.log("[slack/events] resuming_thread", {
       threadTs: event.thread_ts,
